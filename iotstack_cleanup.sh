@@ -23,7 +23,7 @@ if [ -f ~/IOTstack/backups/dropbox ]; then
 		input=$dropboxlog
 		while IFS= read -r file
 		do
-	    	$dropboxuploader delete $dropboxfolder/$file
+	    	$dropboxuploader delete $file
 		done < "$input"
 	fi
 
