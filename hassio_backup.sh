@@ -6,33 +6,56 @@ backupfolder=/usr/share/hassio/backup
 if [ -d "$backupfolder" ]; then
 
     #finding remote backup files and remove IOTstack backups
-    echo "finding remote backup files..."
     remotefiles=$($dropboxuploader list | awk {' print $3 '} | tail -n +2 | grep -v backup)
 
-    #finding local backup files
-    echo "finding local backup files..."
-    localfiles=$(ls -Alht $backupfolder | awk {' print $9 '} | tail -n +2)
+    echo "uploading new local backup files..."
 
-    for file in $localfiles; do
+    #finding recent local backup files
+    recentfiles=$(ls -Alht $backupfolder | awk {' print $9 '} | tail -n +2 | head -n 7)
+
+    for file in $recentfiles; do
         [ -e "$backupfolder/$file" ] || continue
 
         if echo "$remotefiles" | grep -q "$file"; then
-          echo "skipping $file"
+          echo "skipping local backup file $backupfolder/$file"
         else 
-          echo "uploading $file..."
+          echo "uploading local backup file $backupfolder/$file..."
 
-          #upload new backup to dropbox
+          #upload new backup file to dropbox
           $dropboxuploader upload $backupfolder/$file $file
         fi
     done
+    echo ""
 
-    #list older files to be deleted from cloud (exludes last 7)
-    echo "checking for old backups on dropbox"
-    deletefiles=$($dropboxuploader list | awk {' print $3 '} | tail -n +2 | grep -v backup | head -n -7)
+    echo "deleting old local backup files..."
 
-    #delete files from dropbox
-    echo "deleting old backups from dropbox if they exist - last 7 files are kept"
-    for file in $deletefiles; do
-        $dropboxuploader delete $file
+    #finding all local backup files
+    localfiles=$(ls -Alht $backupfolder | awk {' print $9 '} | tail -n +2)
+
+    #deleting old local backup files
+    for file in $localfiles; do
+        [ -e "$backupfolder/$file" ] || continue
+
+        if echo "$recentfiles" | grep -q "$file"; then
+          echo "skipping local backup file $backupfolder/$file"
+        else 
+          echo "deleting local backup file $backupfolder/$file..."
+
+          sudo rm -f $backupfolder/$file
+        fi
+    done
+    echo ""
+
+    echo "deleting old remote backup files..."
+
+    #deleting old remote backup files
+    for file in $remotefiles; do
+        if echo "$recentfiles" | grep -q "$file"; then
+          echo "skipping remote backup file $backupfolder/$file"
+        else 
+          echo "deleting remote backup file $backupfolder/$file..."
+
+          $dropboxuploader delete $file
+        fi
     done
 fi
